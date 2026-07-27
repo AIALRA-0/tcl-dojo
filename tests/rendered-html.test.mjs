@@ -34,8 +34,8 @@ test("server-renders the Tcl learning workspace", async () => {
     /<title>TCL\/DOJO — 从 Tcl 语法到 EDA 自动化<\/title>/i,
   );
   assert.match(html, /别背语法/);
-  assert.match(html, /34 课/);
-  assert.match(html, /98 个交互任务/);
+  assert.match(html, /44 课/);
+  assert.match(html, /128 个交互任务/);
   assert.match(html, /命令、参数、结果/);
   assert.match(html, /运行并检查/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);

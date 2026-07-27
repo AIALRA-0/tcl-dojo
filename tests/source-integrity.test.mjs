@@ -4,7 +4,19 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("ships the complete 7-module, 34-lesson, 98-challenge course", async () => {
+async function loadCourseData() {
+  const source = await readFile(new URL("app/course-data.ts", root), "utf8");
+  const { transform } = await import("esbuild");
+  const compiled = await transform(source, {
+    format: "esm",
+    loader: "ts",
+    target: "es2022",
+  });
+  const encoded = Buffer.from(compiled.code).toString("base64");
+  return import(`data:text/javascript;base64,${encoded}`);
+}
+
+test("ships the complete 9-module, 44-lesson, 128-challenge course", async () => {
   const source = await readFile(new URL("app/course-data.ts", root), "utf8");
   const moduleIds = [...source.matchAll(/^\s{4}id: "([^"]+)",$/gm)].map(
     (match) => match[1],
@@ -16,14 +28,42 @@ test("ships the complete 7-module, 34-lesson, 98-challenge course", async () => 
     ...source.matchAll(/^\s{12}"([a-z0-9-]+)",\n\s{12}"(?:observe|predict|edit|repair|create|capstone)",/gm),
   ].map((match) => match[1]);
 
-  assert.equal(moduleIds.length, 7);
-  assert.equal(lessonIds.length, 34);
-  assert.equal(challengeIds.length, 98);
+  assert.equal(moduleIds.length, 9);
+  assert.equal(lessonIds.length, 44);
+  assert.equal(challengeIds.length, 128);
   assert.equal(new Set(moduleIds).size, moduleIds.length);
   assert.equal(new Set(lessonIds).size, lessonIds.length);
   assert.equal(new Set(challengeIds).size, challengeIds.length);
   assert.match(source, /challenges: allChallenges\.length/);
   assert.match(source, /capstones: allChallenges\.filter/);
+});
+
+test("every task has a complete, internally consistent answer contract", async () => {
+  const { allChallenges, allLessons } = await loadCourseData();
+  const projectLessons = allLessons.filter((lesson) => lesson.project);
+
+  assert.equal(projectLessons.length, 6);
+  for (const lesson of projectLessons) {
+    assert.ok(lesson.project.setting);
+    assert.ok(lesson.project.input);
+    assert.ok(lesson.project.deliverable);
+    assert.ok(lesson.project.acceptance.length >= 3);
+  }
+
+  for (const challenge of allChallenges) {
+    assert.ok(challenge.solution.trim(), `${challenge.id} has no solution`);
+    if (challenge.kind === "predict") {
+      assert.ok(challenge.options?.length >= 2, `${challenge.id} has no options`);
+      assert.ok(
+        Number.isInteger(challenge.answer) &&
+          challenge.answer >= 0 &&
+          challenge.answer < challenge.options.length,
+        `${challenge.id} has an invalid answer`,
+      );
+    } else {
+      assert.ok(challenge.expectation, `${challenge.id} has no run expectation`);
+    }
+  }
 });
 
 test("ships a real Tcl WebAssembly runtime and its license files", async () => {

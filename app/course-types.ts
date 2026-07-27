@@ -29,6 +29,13 @@ export type Challenge = {
   expectation?: RunExpectation;
 };
 
+export type ProjectBrief = {
+  setting: string;
+  input: string;
+  deliverable: string;
+  acceptance: string[];
+};
+
 export type Lesson = {
   id: string;
   number: string;
@@ -41,6 +48,7 @@ export type Lesson = {
   fieldNote: string;
   concepts: string[];
   challenges: Challenge[];
+  project?: ProjectBrief;
 };
 
 export type CourseModule = {

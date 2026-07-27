@@ -14,9 +14,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
   const title = "TCL/DOJO — 从 Tcl 语法到 EDA 自动化";
   const description =
-    "34 课、98 个交互任务：在浏览器真实 Tcl 8.6 内核中，从求值规则一路练到 EDA 对象查询、Vivado 流程与四个综合项目。";
+    "44 课、128 个交互任务、10 个项目交付：在浏览器真实 Tcl 8.6 内核中，从扎实基础一路练到工程自动化与 EDA 发布门禁。";
   const socialDescription =
-    "别背语法，把流程跑起来。真实 Tcl 8.6 浏览器内核 + Vivado 风格设计数据库。";
+    "别背语法，把流程跑起来。真实 Tcl 8.6 内核、扎实基础、真实自动化项目与 Vivado 风格设计数据库。";
   const image = `${origin}/og.png`;
 
   return {

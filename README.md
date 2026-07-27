@@ -9,7 +9,7 @@ TCL/DOJO 是一个面向 EDA / FPGA 自动化场景的中文交互式 Tcl 学习
 ## 它与普通 Tcl 教程有什么不同
 
 - **真实 Tcl 8.6 内核**：Wacl/WebAssembly 在浏览器中执行标准 Tcl，不是 JavaScript 仿写语法。
-- **渐进课程系统**：7 个阶段、34 课、98 个交互任务，按观察、预测、改写、修错、独立完成、综合实战推进。
+- **渐进课程系统**：9 个阶段、44 课、128 个交互任务，按观察、预测、改写、修错、独立完成、项目交付推进。
 - **EDA 设计数据库**：稳定模拟 cells、pins、nets、ports、clocks、timing paths，以及 `get_*`、`get_property`、`filter`、`-of_objects` 等核心对象操作。
 - **流程模拟**：覆盖 Project Mode、Non-Project Mode、report、checkpoint、batch 参数和 QoR gate。
 - **两套可视化**：求值透镜解释 `$`、`[]`、`{}` 的替换时机；对象数据库展示查询轨迹和流程事件。
@@ -26,7 +26,9 @@ TCL/DOJO 是一个面向 EDA / FPGA 自动化场景的中文交互式 Tcl 学习
 | 03 工程化 | proc、作用域、try、文件、argv、namespace | 写带参数和错误边界的命令行脚本 |
 | 04 对象 | collections、properties、filters、relationships | 查询并导航 EDA 设计对象 |
 | 05 流程 | Project / Non-Project、report、checkpoint、batch | 自动化一条 Vivado 风格流程 |
-| 06 实战 | 约束审计、时序分诊、QoR 库、完整门禁 | 带走四个可迁移的工程脚本骨架 |
+| 06 基础＋ | 值边界、集合工具、文本解析、错误契约 | 面对脏数据和异常输入仍能稳定工作 |
+| 07 项目 | 构建矩阵、报告解析、清单、回归、约束、发布门禁 | 完成六个带验收标准的真实自动化项目 |
+| 08 实战 | 约束审计、时序分诊、QoR 库、完整门禁 | 再带走四个交付级 EDA 脚本骨架 |
 
 ## 技术架构
 
@@ -63,7 +65,7 @@ npm test
 npm run lint
 ```
 
-`npm test` 会先执行生产构建，再检查服务端渲染、课程数量与 ID 完整性、Wacl 运行资产和隔离边界。发布前还通过真实 Chromium 批量执行全部 83 个代码题参考答案。
+`npm test` 会先执行生产构建，再检查服务端渲染、课程数量与 ID 完整性、Wacl 运行资产和隔离边界。发布前还会通过真实 Tcl 运行时批量验证全部 109 个代码题参考答案。
 
 ## 运行时说明
 

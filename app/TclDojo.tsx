@@ -320,6 +320,9 @@ export function TclDojo() {
   const [search, setSearch] = useState("");
   const [railOpen, setRailOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [solutionAppliedId, setSolutionAppliedId] = useState<string | null>(
+    null,
+  );
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
   const activeLesson = findLesson(activeLessonId);
@@ -374,6 +377,7 @@ export function TclDojo() {
     setRunResult(null);
     setVerdict(null);
     setSelectedOption(null);
+    setSolutionAppliedId(null);
     setRailOpen(false);
     history.replaceState(null, "", `#${lessonId}/${safeIndex + 1}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -490,6 +494,41 @@ export function TclDojo() {
     setRunResult(null);
     setVerdict(null);
     setSelectedOption(null);
+    setSolutionAppliedId(null);
+  };
+
+  const applyReferenceSolution = () => {
+    if (
+      activeChallenge.kind === "predict" &&
+      activeChallenge.answer !== undefined
+    ) {
+      chooseOption(activeChallenge.answer);
+      setSolutionAppliedId(activeChallenge.id);
+      return;
+    }
+
+    const solution = activeChallenge.solution;
+    setCode(solution);
+    setRunResult(null);
+    setVerdict(null);
+    setSelectedOption(null);
+    setSolutionAppliedId(activeChallenge.id);
+
+    try {
+      const drafts = JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}");
+      drafts[activeChallenge.id] = solution;
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+    } catch {
+      // Immediate persistence is a convenience; the normal draft effect
+      // remains the fallback when storage is unavailable.
+    }
+
+    requestAnimationFrame(() => {
+      const editor = editorRef.current;
+      editor?.focus();
+      editor?.scrollIntoView({ behavior: "smooth", block: "center" });
+      editor?.setSelectionRange(0, 0);
+    });
   };
 
   const lessonCompleted = (lesson: Lesson) =>
@@ -497,12 +536,25 @@ export function TclDojo() {
 
   const showEvaluationLens =
     activeModule.id === "evaluation" ||
-    ["start", "data-control"].includes(activeModule.id);
+    ["start", "data-control", "foundation-plus"].includes(activeModule.id);
+  const challengeUsesEda =
+    activeChallenge.expectation?.traceCommands?.some(
+      (command) =>
+        command.startsWith("get_") ||
+        [
+          "read_verilog",
+          "read_xdc",
+          "synth_design",
+          "opt_design",
+          "place_design",
+          "route_design",
+        ].includes(command),
+    ) ?? false;
   const showDesignDatabase = [
     "eda-objects",
     "vivado-flow",
     "capstones",
-  ].includes(activeModule.id);
+  ].includes(activeModule.id) || challengeUsesEda;
   const atCourseEnd =
     activeLesson.id === allLessons.at(-1)?.id &&
     challengeIndex === activeLesson.challenges.length - 1;
@@ -622,6 +674,7 @@ export function TclDojo() {
                     return (
                       <button
                         className={`lesson-link ${active ? "active" : ""}`}
+                        data-lesson-id={item.id}
                         onClick={() => selectLesson(item.id)}
                         key={item.id}
                         type="button"
@@ -687,6 +740,31 @@ export function TclDojo() {
             </div>
           </section>
 
+          {activeLesson.project && (
+            <section className="project-brief">
+              <div className="project-brief-title">
+                <span>PROJECT BRIEF</span>
+                <strong>{activeLesson.project.setting}</strong>
+              </div>
+              <div>
+                <small>给定输入</small>
+                <p>{activeLesson.project.input}</p>
+              </div>
+              <div>
+                <small>最终交付</small>
+                <p>{activeLesson.project.deliverable}</p>
+              </div>
+              <div className="acceptance-list">
+                <small>验收标准</small>
+                <ul>
+                  {activeLesson.project.acceptance.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+          )}
+
           <div className="challenge-stepper">
             {activeLesson.challenges.map((item, index) => (
               <button
@@ -696,6 +774,7 @@ export function TclDojo() {
                 ]
                   .filter(Boolean)
                   .join(" ")}
+                data-challenge-index={index}
                 onClick={() => selectLesson(activeLesson.id, index)}
                 key={item.id}
                 type="button"
@@ -707,7 +786,11 @@ export function TclDojo() {
             ))}
           </div>
 
-          <section className="challenge-brief">
+          <section
+            className="challenge-brief"
+            data-challenge-id={activeChallenge.id}
+            data-challenge-kind={activeChallenge.kind}
+          >
             <span className={`kind-tag kind-${activeChallenge.kind}`}>
               {kindLabels[activeChallenge.kind]}
             </span>
@@ -768,7 +851,10 @@ export function TclDojo() {
                 </div>
                 <textarea
                   aria-label="Tcl 代码编辑器"
-                  onChange={(event) => setCode(event.target.value)}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    setSolutionAppliedId(null);
+                  }}
                   onKeyDown={handleEditorKeyDown}
                   ref={editorRef}
                   spellCheck={false}
@@ -794,6 +880,7 @@ export function TclDojo() {
                 </div>
                 <button
                   className="run-button"
+                  data-testid="run-check"
                   disabled={status !== "ready"}
                   onClick={() => void runAndCheck()}
                   type="button"
@@ -856,7 +943,10 @@ export function TclDojo() {
                 )}
 
                 {verdict && (
-                  <div className={`check-result ${verdict}`}>
+                  <div
+                    className={`check-result ${verdict}`}
+                    data-testid="check-result"
+                  >
                     <span>{verdict === "success" ? "✓" : "↻"}</span>
                     <div>
                       <strong>
@@ -882,14 +972,18 @@ export function TclDojo() {
                   <summary>仍然卡住？查看参考实现</summary>
                   <pre>{activeChallenge.solution}</pre>
                   <button
-                    onClick={() => {
-                      setCode(activeChallenge.solution);
-                      setRunResult(null);
-                      setVerdict(null);
-                    }}
+                    aria-live="polite"
+                    data-testid="apply-reference"
+                    onClick={applyReferenceSolution}
                     type="button"
                   >
-                    放入编辑器
+                    {solutionAppliedId === activeChallenge.id
+                      ? activeChallenge.kind === "predict"
+                        ? "✓ 已选择正确答案"
+                        : "✓ 已放入编辑器"
+                      : activeChallenge.kind === "predict"
+                        ? "选择正确答案"
+                        : "放入编辑器"}
                   </button>
                 </details>
               </div>

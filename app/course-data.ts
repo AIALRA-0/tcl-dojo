@@ -3,6 +3,7 @@ import type {
   ChallengeKind,
   CourseModule,
   Lesson,
+  ProjectBrief,
   RunExpectation,
 } from "./course-types";
 
@@ -63,6 +64,38 @@ function lesson(
     fieldNote,
     concepts,
     challenges,
+  };
+}
+
+function projectLesson(
+  id: string,
+  number: string,
+  moduleId: string,
+  eyebrow: string,
+  title: string,
+  duration: string,
+  mission: string,
+  rule: string,
+  fieldNote: string,
+  concepts: string[],
+  challenges: Challenge[],
+  project: ProjectBrief,
+): Lesson {
+  return {
+    ...lesson(
+      id,
+      number,
+      moduleId,
+      eyebrow,
+      title,
+      duration,
+      mission,
+      rule,
+      fieldNote,
+      concepts,
+      challenges,
+    ),
+    project,
   };
 }
 
@@ -2363,8 +2396,1128 @@ puts "BUILD top=$top version=[version -short]"`,
     ],
   },
   {
-    id: "capstones",
+    id: "foundation-plus",
     index: "06",
+    title: "基础加固训练场",
+    shortTitle: "基础＋",
+    description: "专门补齐最容易在真实脚本里踩坑的值边界、集合工具、文本解析和错误契约。",
+    outcome: "面对带空格的数据、半结构化报告和异常输入时，仍能写出稳定、可解释的 Tcl。",
+    lessons: [
+      lesson(
+        "value-boundaries",
+        "31",
+        "foundation-plus",
+        "字符串能表示列表，不等于它就是好列表",
+        "值、单词与列表边界",
+        "14 min",
+        "用 list 和 lappend 保存带空格的工程对象名，彻底避免手工拼接造成的数据损坏。",
+        "需要保存多个值时用列表命令构造；不要靠空格和双引号手工模拟列表。",
+        "文件名、层级对象名和工具选项都可能含空格。边界一旦丢失，后面的 llength、foreach 和 {*} 都会一起出错。",
+        ["list", "lappend", "llength", "lindex"],
+        [
+          challenge(
+            "value-boundaries-observe",
+            "observe",
+            "观察边界如何被保留",
+            "运行代码，确认带空格的 cell 名仍然只是一个列表元素。",
+            `set cell "u cpu"
+set cells [list $cell u_dma]
+puts "count=[llength $cells]"
+puts "first=[lindex $cells 0]"`,
+            `set cell "u cpu"
+set cells [list $cell u_dma]
+puts "count=[llength $cells]"
+puts "first=[lindex $cells 0]"`,
+            "重点比较字符串里的空格与 list 命令建立的元素边界。",
+            "你看到了 Tcl 列表最关键的能力：保存边界，而不只是拼出一段文本。",
+            { outputExact: ["count=2", "first=u cpu"] },
+          ),
+          challenge(
+            "value-boundaries-predict",
+            "predict",
+            "预测手工字符串的元素数",
+            "下面的 raw 被列表命令解释后有多少个元素？",
+            `set raw "top.v bus ctrl.v"
+puts [llength $raw]`,
+            `set raw "top.v bus ctrl.v"
+puts [llength $raw]`,
+            "双引号只保护 set 的一个参数，并不会把内部三个单词变成一个列表元素。",
+            "正确：raw 是合法的三元素列表，但它并没有保存“bus ctrl.v”这个文件名的边界。",
+            undefined,
+            { options: ["1", "2", "3", "报错"], answer: 2 },
+          ),
+          challenge(
+            "value-boundaries-repair",
+            "repair",
+            "修复带空格的文件名",
+            "修复 files 的构造方式，使输出精确为 count=3 second=bus ctrl.v。",
+            `set files "top.v bus ctrl.v"
+lappend files pins.xdc
+puts "count=[llength $files] second=[lindex $files 1]"`,
+            `set files [list top.v "bus ctrl.v"]
+lappend files pins.xdc
+puts "count=[llength $files] second=[lindex $files 1]"`,
+            "只改第一行：让 list 命令负责引用规则。",
+            "现在文件名边界可以安全穿过 lappend、foreach 和参数展开。",
+            { outputExact: ["count=3 second=bus ctrl.v"] },
+          ),
+        ],
+      ),
+      lesson(
+        "collection-toolbox",
+        "32",
+        "foundation-plus",
+        "从会 foreach 到会变换数据",
+        "lassign、lmap、lsort 与 lsearch",
+        "17 min",
+        "把嵌套列表当作轻量数据表，完成解构、映射、去重、排序和筛选。",
+        "先明确每一行数据的形状，再用 lassign 解构；需要生成新集合时优先考虑 lmap。",
+        "EDA 报告解析、构建矩阵和回归结果经常天然就是“列表的列表”，不必一上来就引入复杂格式。",
+        ["lassign", "lmap", "lsort", "lsearch"],
+        [
+          challenge(
+            "collection-toolbox-observe",
+            "observe",
+            "把采样表映射成摘要",
+            "运行 lmap，观察每一行如何被解构并格式化为新列表。",
+            `set samples {{slow -0.23} {typ 0.12} {fast 0.31}}
+set labels [lmap sample $samples {
+    lassign $sample corner slack
+    format "%s:%+.2f" $corner $slack
+}]
+puts [join $labels ,]`,
+            `set samples {{slow -0.23} {typ 0.12} {fast 0.31}}
+set labels [lmap sample $samples {
+    lassign $sample corner slack
+    format "%s:%+.2f" $corner $slack
+}]
+puts [join $labels ,]`,
+            "lmap 的脚本结果会成为新列表中的一个元素。",
+            "你已经能把结构化采样数据转换成稳定的展示格式。",
+            { outputExact: ["slow:-0.23,typ:+0.12,fast:+0.31"] },
+          ),
+          challenge(
+            "collection-toolbox-predict",
+            "predict",
+            "预测数值排序与去重",
+            "lsort -real -unique 会输出哪一个列表？",
+            `puts [lsort -real -unique {0.1 -0.2 0.1 0.0}]`,
+            `puts [lsort -real -unique {0.1 -0.2 0.1 0.0}]`,
+            "-real 按数值而不是字典序比较，-unique 会移除重复项。",
+            "正确：数值排序后，负数在前，重复的 0.1 只保留一次。",
+            undefined,
+            {
+              options: [
+                "-0.2 0.0 0.1",
+                "0.0 0.1 -0.2",
+                "-0.2 0.0 0.1 0.1",
+                "0.0 -0.2 0.1",
+              ],
+              answer: 0,
+            },
+          ),
+          challenge(
+            "collection-toolbox-create",
+            "create",
+            "提取并排序违例",
+            "从 slacks 中提取所有负值，按数值升序输出 failing=-0.23,-0.05。",
+            `set slacks {0.12 -0.05 0.33 -0.23 0.0}
+# 生成 failing 列表
+
+puts "failing=[join $failing ,]"`,
+            `set slacks {0.12 -0.05 0.33 -0.23 0.0}
+set failing [lmap value $slacks {
+    if {$value >= 0} { continue }
+    set value
+}]
+set failing [lsort -real $failing]
+puts "failing=[join $failing ,]"`,
+            "在 lmap 中用 continue 跳过非负值，再对结果使用 lsort -real。",
+            "你完成了一个可复用的数据清洗管道：筛选、排序、展示。",
+            { outputExact: ["failing=-0.23,-0.05"] },
+          ),
+        ],
+      ),
+      lesson(
+        "text-toolbox",
+        "33",
+        "foundation-plus",
+        "把人类报告变成机器数据",
+        "regexp、regsub 与 format",
+        "18 min",
+        "从半结构化日志中提取字段、规范名字并生成稳定摘要。",
+        "正则负责识别和捕获，dict/list 负责保存，format 负责最终展示；不要把三件事搅在一个表达式里。",
+        "综合、实现、仿真和 CI 工具都大量输出文本。Tcl 的文本工具足以构建轻量而可靠的适配层。",
+        ["regexp", "regsub", "dict incr", "format"],
+        [
+          challenge(
+            "text-toolbox-observe",
+            "observe",
+            "从一行报告提取字段",
+            "运行正则，提取 run 名和 WNS 数值。",
+            `set line "impl_1: WNS=-0.230"
+if {[regexp {^([^:]+):\\s+WNS=(-?[0-9.]+)$} $line -> run wns]} {
+    puts "run=$run wns=$wns"
+}`,
+            `set line "impl_1: WNS=-0.230"
+if {[regexp {^([^:]+):\\s+WNS=(-?[0-9.]+)$} $line -> run wns]} {
+    puts "run=$run wns=$wns"
+}`,
+            "-> 丢弃完整匹配，后面的变量依次接收两个捕获组。",
+            "你已把报告文本转换成两个可以比较和汇总的 Tcl 值。",
+            { outputExact: ["run=impl_1 wns=-0.230"] },
+          ),
+          challenge(
+            "text-toolbox-predict",
+            "predict",
+            "预测名字规范化结果",
+            "regsub -all 会把所有非字母数字字符替换成什么结果？",
+            `puts [regsub -all {[^A-Za-z0-9]+} "u_cpu/state reg" _]`,
+            `puts [regsub -all {[^A-Za-z0-9]+} "u_cpu/state reg" _]`,
+            "斜杠、下划线和空格都会被连续匹配段替换成一个下划线。",
+            "正确：连续的特殊字符段被压成安全的单个下划线。",
+            undefined,
+            {
+              options: [
+                "u_cpu_state_reg",
+                "u_cpu__state_reg",
+                "u_cpu/state_reg",
+                "u cpustate reg",
+              ],
+              answer: 0,
+            },
+          ),
+          challenge(
+            "text-toolbox-create",
+            "create",
+            "统计日志等级",
+            "统计三种日志等级，输出 INFO=2 WARN=1 ERROR=2。",
+            `set log {
+    {INFO build started}
+    {WARN unconstrained port}
+    {ERROR timing failed}
+    {INFO report written}
+    {ERROR bitstream blocked}
+}
+set counts [dict create INFO 0 WARN 0 ERROR 0]
+# 遍历并更新 counts
+
+puts [format "INFO=%d WARN=%d ERROR=%d" \
+    [dict get $counts INFO] \
+    [dict get $counts WARN] \
+    [dict get $counts ERROR]]`,
+            `set log {
+    {INFO build started}
+    {WARN unconstrained port}
+    {ERROR timing failed}
+    {INFO report written}
+    {ERROR bitstream blocked}
+}
+set counts [dict create INFO 0 WARN 0 ERROR 0]
+foreach line $log {
+    if {[regexp {^(INFO|WARN|ERROR)\\s+} $line -> level]} {
+        dict incr counts $level
+    }
+}
+puts [format "INFO=%d WARN=%d ERROR=%d" \
+    [dict get $counts INFO] \
+    [dict get $counts WARN] \
+    [dict get $counts ERROR]]`,
+            "对每行捕获 level，然后用 dict incr 更新对应计数。",
+            "你写出了第一个真正可迁移到工具日志上的文本统计器。",
+            { outputExact: ["INFO=2 WARN=1 ERROR=2"] },
+          ),
+        ],
+      ),
+      lesson(
+        "error-contracts",
+        "34",
+        "foundation-plus",
+        "错误也应该有稳定接口",
+        "catch、errorcode 与防御式过程",
+        "18 min",
+        "让过程对坏输入明确失败，并让上层脚本能区分错误类型、记录原因和决定是否继续。",
+        "错误消息给人看，-errorcode 给程序判断；过程要么返回承诺的值，要么用明确错误拒绝输入。",
+        "批处理脚本最危险的状态不是报错，而是悄悄产出不完整结果后继续发布。",
+        ["catch", "-errorcode", "error", "防御式编程"],
+        [
+          challenge(
+            "error-contracts-observe",
+            "observe",
+            "检查 catch 的完整结果",
+            "运行代码，观察 catch 同时返回状态码、消息和选项字典。",
+            `proc positive {value} {
+    if {$value <= 0} { error "must be positive" }
+    return $value
+}
+set code [catch {positive -1} message options]
+puts "code=$code message=$message"
+puts "class=[dict get $options -errorcode]"`,
+            `proc positive {value} {
+    if {$value <= 0} { error "must be positive" }
+    return $value
+}
+set code [catch {positive -1} message options]
+puts "code=$code message=$message"
+puts "class=[dict get $options -errorcode]"`,
+            "普通 error 的状态码是 1，未自定义时 -errorcode 为 NONE。",
+            "你不再只是吞掉错误，而是拿到了可用于决策的完整错误信息。",
+            { outputExact: ["code=1 message=must be positive", "class=NONE"] },
+          ),
+          challenge(
+            "error-contracts-predict",
+            "predict",
+            "预测结构化错误码",
+            "下面的脚本最终输出哪一个错误类别？",
+            `proc validate_part {part} {
+    return -code error -errorcode {DOJO INPUT PART} "bad part: $part"
+}
+catch {validate_part unknown} message options
+puts [dict get $options -errorcode]`,
+            `proc validate_part {part} {
+    return -code error -errorcode {DOJO INPUT PART} "bad part: $part"
+}
+catch {validate_part unknown} message options
+puts [dict get $options -errorcode]`,
+            "-errorcode 本身也是一个 Tcl 列表，可以表达从大类到细类的层级。",
+            "正确：上层脚本可以稳定识别这是输入中的器件型号错误。",
+            undefined,
+            {
+              options: ["NONE", "DOJO", "DOJO INPUT PART", "bad part: unknown"],
+              answer: 2,
+            },
+          ),
+          challenge(
+            "error-contracts-create",
+            "create",
+            "实现安全平均值",
+            "实现 mean：空列表抛出 empty samples；正常输入返回浮点平均值。最后输出两行指定结果。",
+            `proc mean {values} {
+    # 验证并计算
+}
+
+if {[catch {mean {}} reason]} {
+    puts "status=ERROR reason=$reason"
+}
+puts "mean=[mean {1 2 6}]"`,
+            `proc mean {values} {
+    if {[llength $values] == 0} {
+        error "empty samples"
+    }
+    set sum 0.0
+    foreach value $values {
+        set sum [expr {$sum + $value}]
+    }
+    return [expr {$sum / [llength $values]}]
+}
+
+if {[catch {mean {}} reason]} {
+    puts "status=ERROR reason=$reason"
+}
+puts "mean=[mean {1 2 6}]"`,
+            "先拒绝空列表；sum 从 0.0 开始可确保返回浮点值。",
+            "这个过程有了明确的成功值与失败契约，可安全嵌入更大的流水线。",
+            {
+              outputExact: [
+                "status=ERROR reason=empty samples",
+                "mean=3.0",
+              ],
+            },
+          ),
+        ],
+      ),
+    ],
+  },
+  {
+    id: "applied-projects",
+    index: "07",
+    title: "真实自动化项目库",
+    shortTitle: "项目",
+    description: "每课完成一个有输入、交付物和验收标准的小项目，从通用自动化一路走到 EDA 发布门禁。",
+    outcome: "完成六个可放进作品集、也可迁移到工作仓库的 Tcl 项目骨架。",
+    lessons: [
+      projectLesson(
+        "build-matrix-project",
+        "35",
+        "applied-projects",
+        "项目 01 · 配置驱动",
+        "生成多角落构建矩阵",
+        "24 min",
+        "把 top、part、并行度和 corner 变成一份配置，自动生成稳定的构建计划。",
+        "配置只描述“是什么”，过程负责“怎么执行”；不要让项目参数散落在命令链里。",
+        "真实 CI 会组合器件、约束角落、seed 和策略。先生成可审阅计划，再提交到工具执行。",
+        ["dict", "foreach", "format", "配置驱动"],
+        [
+          challenge(
+            "build-matrix-observe",
+            "observe",
+            "读取构建配置",
+            "运行代码，观察同一份配置如何生成两个角落的计划。",
+            `set config [dict create \
+    top soc_top \
+    part xc7a200t \
+    jobs 8 \
+    corners {slow fast}]
+
+foreach corner [dict get $config corners] {
+    puts "plan=$corner top=[dict get $config top] jobs=[dict get $config jobs]"
+}`,
+            `set config [dict create \
+    top soc_top \
+    part xc7a200t \
+    jobs 8 \
+    corners {slow fast}]
+
+foreach corner [dict get $config corners] {
+    puts "plan=$corner top=[dict get $config top] jobs=[dict get $config jobs]"
+}`,
+            "一份 config 被所有计划共享，只有 corner 在循环中变化。",
+            "你已经把硬编码命令变成了可扩展的参数矩阵。",
+            {
+              outputExact: [
+                "plan=slow top=soc_top jobs=8",
+                "plan=fast top=soc_top jobs=8",
+              ],
+            },
+          ),
+          challenge(
+            "build-matrix-edit",
+            "edit",
+            "加入 seed 维度",
+            "补全双层循环，生成 slow/fast 与 seed 11/22 的四个目标名。",
+            `set corners {slow fast}
+set seeds {11 22}
+set targets {}
+
+# 生成 targets
+
+puts [join $targets ,]`,
+            `set corners {slow fast}
+set seeds {11 22}
+set targets {}
+
+foreach corner $corners {
+    foreach seed $seeds {
+        lappend targets "\${corner}_s\${seed}"
+    }
+}
+
+puts [join $targets ,]`,
+            "外层遍历 corner，内层遍历 seed；每一种组合 lappend 一次。",
+            "构建矩阵已扩展成笛卡尔积，而且目标名仍然可预测。",
+            { outputExact: ["slow_s11,slow_s22,fast_s11,fast_s22"] },
+          ),
+          challenge(
+            "build-matrix-capstone",
+            "capstone",
+            "交付 build_plan",
+            "实现 build_plan {config}，返回每个 corner 的 launch 命令并逐行输出。",
+            `proc build_plan {config} {
+    # 返回命令列表
+}
+
+set config [dict create \
+    top soc_top \
+    part xc7a200t \
+    jobs 8 \
+    corners {slow fast}]
+foreach command [build_plan $config] {
+    puts $command
+}`,
+            `proc build_plan {config} {
+    set plan {}
+    foreach corner [dict get $config corners] {
+        lappend plan [format "launch %s -top %s -part %s -jobs %d" \
+            $corner \
+            [dict get $config top] \
+            [dict get $config part] \
+            [dict get $config jobs]]
+    }
+    return $plan
+}
+
+set config [dict create \
+    top soc_top \
+    part xc7a200t \
+    jobs 8 \
+    corners {slow fast}]
+foreach command [build_plan $config] {
+    puts $command
+}`,
+            "过程内部构造 plan 列表；每个元素是一条完整命令，最后 return。",
+            "项目完成：你交付了一个可测试、可审阅、可接入 CI 的构建计划生成器。",
+            {
+              outputExact: [
+                "launch slow -top soc_top -part xc7a200t -jobs 8",
+                "launch fast -top soc_top -part xc7a200t -jobs 8",
+              ],
+            },
+          ),
+        ],
+        {
+          setting: "夜间 CI 需要覆盖 slow / fast 两个实现角落",
+          input: "top、part、jobs、corners 和 seeds 配置",
+          deliverable: "build_plan 过程与逐行可执行的构建计划",
+          acceptance: ["参数只定义一次", "组合顺序稳定", "输出可直接记录或执行"],
+        },
+      ),
+      projectLesson(
+        "timing-report-parser-project",
+        "36",
+        "applied-projects",
+        "项目 02 · 报告适配",
+        "解析时序摘要并做决策",
+        "26 min",
+        "把 WNS、TNS 和 failing endpoints 从文本报告提取成字典，并生成 PASS/BLOCK 结论。",
+        "解析层只负责把文本转成数据；策略层再根据数据做门禁判断。",
+        "工具版本变化时，集中维护一个解析适配器，比让正则散落在流水线各处更可靠。",
+        ["split", "regexp", "dict", "门禁策略"],
+        [
+          challenge(
+            "timing-parser-observe",
+            "observe",
+            "逐行提取 WNS",
+            "运行代码，从三行报告中只提取 WNS。",
+            `set report {Timing summary
+WNS -0.230 ns
+TNS -0.510 ns}
+
+foreach line [split $report \\n] {
+    if {[regexp {^WNS\\s+(-?[0-9.]+)\\s+ns$} $line -> wns]} {
+        puts "WNS=$wns"
+    }
+}`,
+            `set report {Timing summary
+WNS -0.230 ns
+TNS -0.510 ns}
+
+foreach line [split $report \\n] {
+    if {[regexp {^WNS\\s+(-?[0-9.]+)\\s+ns$} $line -> wns]} {
+        puts "WNS=$wns"
+    }
+}`,
+            "先 split 成行，再让每条正则只识别一种记录。",
+            "你建立了文本报告到结构化数据的第一层适配。",
+            { outputExact: ["WNS=-0.230"] },
+          ),
+          challenge(
+            "timing-parser-edit",
+            "edit",
+            "找出路径表中的最差值",
+            "遍历路径表，输出 worst=path_0 slack=-0.230。",
+            `set paths {
+    {path_0 -0.230}
+    {path_1 0.150}
+    {path_2 -0.050}
+}
+set worstName ""
+set worstSlack 999.0
+
+# 更新 worstName 与 worstSlack
+
+puts [format "worst=%s slack=%.3f" $worstName $worstSlack]`,
+            `set paths {
+    {path_0 -0.230}
+    {path_1 0.150}
+    {path_2 -0.050}
+}
+set worstName ""
+set worstSlack 999.0
+
+foreach path $paths {
+    lassign $path name slack
+    if {$slack < $worstSlack} {
+        set worstName $name
+        set worstSlack $slack
+    }
+}
+
+puts [format "worst=%s slack=%.3f" $worstName $worstSlack]`,
+            "把当前最差值初始化为足够大的数，每遇到更小 slack 就同时更新名字和值。",
+            "你的解析器已经能从多条记录中提炼出真正需要关注的最差项。",
+            { outputExact: ["worst=path_0 slack=-0.230"] },
+          ),
+          challenge(
+            "timing-parser-capstone",
+            "capstone",
+            "交付 parse_timing_summary",
+            "实现解析过程，输出 WNS=-0.230 TNS=-0.510 FAILING=2 VERDICT=BLOCK。",
+            `proc parse_timing_summary {text} {
+    set metrics [dict create]
+    # 解析三项指标并返回 metrics
+}
+
+set report {Timing summary
+WNS -0.230 ns
+TNS -0.510 ns
+Failing endpoints 2}
+set metrics [parse_timing_summary $report]
+set verdict [expr {[dict get $metrics WNS] < 0 ? "BLOCK" : "PASS"}]
+puts [format "WNS=%.3f TNS=%.3f FAILING=%d VERDICT=%s" \
+    [dict get $metrics WNS] \
+    [dict get $metrics TNS] \
+    [dict get $metrics FAILING] \
+    $verdict]`,
+            `proc parse_timing_summary {text} {
+    set metrics [dict create]
+    foreach line [split $text \\n] {
+        if {[regexp {^(WNS|TNS)\\s+(-?[0-9.]+)\\s+ns$} $line -> key value]} {
+            dict set metrics $key $value
+        } elseif {[regexp {^Failing endpoints\\s+([0-9]+)$} $line -> count]} {
+            dict set metrics FAILING $count
+        }
+    }
+    return $metrics
+}
+
+set report {Timing summary
+WNS -0.230 ns
+TNS -0.510 ns
+Failing endpoints 2}
+set metrics [parse_timing_summary $report]
+set verdict [expr {[dict get $metrics WNS] < 0 ? "BLOCK" : "PASS"}]
+puts [format "WNS=%.3f TNS=%.3f FAILING=%d VERDICT=%s" \
+    [dict get $metrics WNS] \
+    [dict get $metrics TNS] \
+    [dict get $metrics FAILING] \
+    $verdict]`,
+            "用一个正则处理 WNS/TNS，用另一个处理整数计数；所有结果进入同一字典。",
+            "项目完成：人类报告已经被转换成流水线可以可靠判断的门禁数据。",
+            {
+              outputExact: [
+                "WNS=-0.230 TNS=-0.510 FAILING=2 VERDICT=BLOCK",
+              ],
+            },
+          ),
+        ],
+        {
+          setting: "实现流程需要自动读取 timing summary 并阻止坏结果发布",
+          input: "包含 WNS、TNS、Failing endpoints 的多行文本",
+          deliverable: "parse_timing_summary 适配器与 PASS/BLOCK 判定",
+          acceptance: ["三项指标完整", "数值格式稳定", "负 WNS 必须 BLOCK"],
+        },
+      ),
+      projectLesson(
+        "source-manifest-project",
+        "37",
+        "applied-projects",
+        "项目 03 · 文件组织",
+        "生成 HDL 源文件清单",
+        "24 min",
+        "按扩展名把源文件分类成 RTL、约束和 IP，生成顺序稳定的 manifest 摘要。",
+        "路径处理交给 file 命令，分类结果放进字典；不要用脆弱的字符串切片猜扩展名。",
+        "源文件清单是构建可复现性的入口。先把“有哪些输入”说清楚，再谈综合命令。",
+        ["file extension", "switch", "dict lappend", "manifest"],
+        [
+          challenge(
+            "manifest-observe",
+            "observe",
+            "按扩展名统计输入",
+            "运行分类器，得到 rtl=3 xdc=1 ip=1。",
+            `set files {
+    rtl/top.v
+    rtl/dma.sv
+    constr/top.xdc
+    ip/fifo.xci
+    sim/tb.sv
+}
+array set counts {rtl 0 xdc 0 ip 0}
+foreach path $files {
+    switch -- [file extension $path] {
+        .v - .sv { incr counts(rtl) }
+        .xdc { incr counts(xdc) }
+        .xci { incr counts(ip) }
+    }
+}
+puts "rtl=$counts(rtl) xdc=$counts(xdc) ip=$counts(ip)"`,
+            `set files {
+    rtl/top.v
+    rtl/dma.sv
+    constr/top.xdc
+    ip/fifo.xci
+    sim/tb.sv
+}
+array set counts {rtl 0 xdc 0 ip 0}
+foreach path $files {
+    switch -- [file extension $path] {
+        .v - .sv { incr counts(rtl) }
+        .xdc { incr counts(xdc) }
+        .xci { incr counts(ip) }
+    }
+}
+puts "rtl=$counts(rtl) xdc=$counts(xdc) ip=$counts(ip)"`,
+            "switch 的 .v - .sv 写法让两个模式共享同一个动作。",
+            "你已经能从混合输入中建立一份可审阅的文件构成摘要。",
+            { outputExact: ["rtl=3 xdc=1 ip=1"] },
+          ),
+          challenge(
+            "manifest-edit",
+            "edit",
+            "生成逻辑库名",
+            "把路径 sim/tb_top.sv 转成 lib=work unit=tb_top ext=.sv。",
+            `set path sim/tb_top.sv
+# 使用 file 命令得到 unit 与 ext
+set lib work
+
+puts "lib=$lib unit=$unit ext=$ext"`,
+            `set path sim/tb_top.sv
+set unit [file rootname [file tail $path]]
+set ext [file extension $path]
+set lib work
+
+puts "lib=$lib unit=$unit ext=$ext"`,
+            "file tail 去掉目录，file rootname 再去掉扩展名。",
+            "路径层级和文件名已经被可靠拆分，不依赖操作系统分隔符。",
+            { outputExact: ["lib=work unit=tb_top ext=.sv"] },
+          ),
+          challenge(
+            "manifest-capstone",
+            "capstone",
+            "交付 make_manifest",
+            "实现分类过程，并按 RTL、XDC、IP 三行输出逗号连接的清单。",
+            `proc make_manifest {files} {
+    set manifest [dict create RTL {} XDC {} IP {}]
+    # 分类并返回 manifest
+}
+
+set files {rtl/top.v rtl/dma.sv constr/top.xdc ip/fifo.xci sim/tb.sv}
+set manifest [make_manifest $files]
+foreach kind {RTL XDC IP} {
+    puts "$kind=[join [dict get $manifest $kind] ,]"
+}`,
+            `proc make_manifest {files} {
+    set manifest [dict create RTL {} XDC {} IP {}]
+    foreach path $files {
+        switch -- [file extension $path] {
+            .v - .sv { dict lappend manifest RTL $path }
+            .xdc { dict lappend manifest XDC $path }
+            .xci { dict lappend manifest IP $path }
+        }
+    }
+    return $manifest
+}
+
+set files {rtl/top.v rtl/dma.sv constr/top.xdc ip/fifo.xci sim/tb.sv}
+set manifest [make_manifest $files]
+foreach kind {RTL XDC IP} {
+    puts "$kind=[join [dict get $manifest $kind] ,]"
+}`,
+            "初始化三个空列表；每个文件根据扩展名 dict lappend 到对应类别。",
+            "项目完成：你得到了一份稳定、结构化、可直接驱动 read_* 命令的输入清单。",
+            {
+              outputExact: [
+                "RTL=rtl/top.v,rtl/dma.sv,sim/tb.sv",
+                "XDC=constr/top.xdc",
+                "IP=ip/fifo.xci",
+              ],
+            },
+          ),
+        ],
+        {
+          setting: "不同目录中的 RTL、仿真、约束和 IP 文件需要统一进入构建",
+          input: "一组相对路径及其扩展名",
+          deliverable: "make_manifest 过程与分类后的有序清单",
+          acceptance: ["路径解析跨平台", "分类不丢文件", "顺序与输入一致"],
+        },
+      ),
+      projectLesson(
+        "regression-dashboard-project",
+        "38",
+        "applied-projects",
+        "项目 04 · 回归汇总",
+        "生成仿真回归仪表板摘要",
+        "27 min",
+        "统计 PASS/FAIL、找出最慢用例，并生成决定流水线状态的一行摘要。",
+        "每个用例用字典表达；聚合过程只读取字段，不依赖字段在文本中的位置。",
+        "真实回归可能有数千条记录。先写对小数据的聚合契约，再把输入换成 CSV、JSON 或工具 API。",
+        ["记录字典", "聚合", "最值", "回归门禁"],
+        [
+          challenge(
+            "regression-observe",
+            "observe",
+            "统计回归结果",
+            "运行聚合循环，确认 PASS=2 FAIL=1。",
+            `set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set pass 0
+set fail 0
+foreach run $runs {
+    if {[dict get $run status] eq "PASS"} {
+        incr pass
+    } else {
+        incr fail
+    }
+}
+puts "PASS=$pass FAIL=$fail"`,
+            `set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set pass 0
+set fail 0
+foreach run $runs {
+    if {[dict get $run status] eq "PASS"} {
+        incr pass
+    } else {
+        incr fail
+    }
+}
+puts "PASS=$pass FAIL=$fail"`,
+            "runs 是列表；列表中的每个元素又是一个合法字典。",
+            "你已经建立了回归数据模型和最基本的聚合指标。",
+            { outputExact: ["PASS=2 FAIL=1"] },
+          ),
+          challenge(
+            "regression-edit",
+            "edit",
+            "找出最慢用例",
+            "补全循环，输出 slowest=timing seconds=44。",
+            `set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set slowest ""
+set maxSeconds -1
+
+# 更新 slowest 与 maxSeconds
+
+puts "slowest=$slowest seconds=$maxSeconds"`,
+            `set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set slowest ""
+set maxSeconds -1
+
+foreach run $runs {
+    set seconds [dict get $run seconds]
+    if {$seconds > $maxSeconds} {
+        set maxSeconds $seconds
+        set slowest [dict get $run name]
+    }
+}
+
+puts "slowest=$slowest seconds=$maxSeconds"`,
+            "读取 seconds 与当前最大值比较；更新时同时保存用例名。",
+            "摘要现在不仅说明成败，也能直接指出回归性能瓶颈。",
+            { outputExact: ["slowest=timing seconds=44"] },
+          ),
+          challenge(
+            "regression-capstone",
+            "capstone",
+            "交付 summarize_regression",
+            "实现汇总过程，输出 PASS=2 FAIL=1 TOTAL=3 SLOWEST=timing:44s VERDICT=BLOCK。",
+            `proc summarize_regression {runs} {
+    # 返回包含 PASS FAIL TOTAL SLOWEST SECONDS 的字典
+}
+
+set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set summary [summarize_regression $runs]
+set verdict [expr {[dict get $summary FAIL] > 0 ? "BLOCK" : "PASS"}]
+puts "PASS=[dict get $summary PASS] FAIL=[dict get $summary FAIL] TOTAL=[dict get $summary TOTAL] SLOWEST=[dict get $summary SLOWEST]:[dict get $summary SECONDS]s VERDICT=$verdict"`,
+            `proc summarize_regression {runs} {
+    set summary [dict create PASS 0 FAIL 0 TOTAL [llength $runs] SLOWEST "" SECONDS -1]
+    foreach run $runs {
+        dict incr summary [dict get $run status]
+        set seconds [dict get $run seconds]
+        if {$seconds > [dict get $summary SECONDS]} {
+            dict set summary SLOWEST [dict get $run name]
+            dict set summary SECONDS $seconds
+        }
+    }
+    return $summary
+}
+
+set runs {
+    {name smoke status PASS seconds 12}
+    {name dma_burst status FAIL seconds 31}
+    {name timing status PASS seconds 44}
+}
+set summary [summarize_regression $runs]
+set verdict [expr {[dict get $summary FAIL] > 0 ? "BLOCK" : "PASS"}]
+puts "PASS=[dict get $summary PASS] FAIL=[dict get $summary FAIL] TOTAL=[dict get $summary TOTAL] SLOWEST=[dict get $summary SLOWEST]:[dict get $summary SECONDS]s VERDICT=$verdict"`,
+            "summary 字典同时保存计数和最慢记录；每次循环只更新必要字段。",
+            "项目完成：你的回归结果已经能用一行机器友好的摘要驱动 CI 状态。",
+            {
+              outputExact: [
+                "PASS=2 FAIL=1 TOTAL=3 SLOWEST=timing:44s VERDICT=BLOCK",
+              ],
+            },
+          ),
+        ],
+        {
+          setting: "夜间仿真回归需要给工程师和 CI 同时提供结论",
+          input: "用例名、PASS/FAIL 状态和运行秒数",
+          deliverable: "summarize_regression 聚合器与单行门禁摘要",
+          acceptance: ["计数正确", "最慢用例正确", "任一 FAIL 都必须 BLOCK"],
+        },
+      ),
+      projectLesson(
+        "constraint-audit-project",
+        "39",
+        "applied-projects",
+        "项目 05 · 设计审计",
+        "审计缺失的输出延迟约束",
+        "29 min",
+        "查询所有输出端口，找出没有 output delay 的对象，并生成带数量和结论的审计摘要。",
+        "查询集合、逐对象取属性、收集违例、统一决策；不要在发现第一个问题时就丢掉后续证据。",
+        "这套“query → inspect → collect → decide”骨架同样适用于 LOC、时钟、false path 和命名规范审计。",
+        ["get_ports", "get_property", "审计模式", "证据集合"],
+        [
+          challenge(
+            "constraint-project-observe",
+            "observe",
+            "列出未约束输出",
+            "运行查询，逐行输出 missing=out_valid 与 missing=irq。",
+            `set outputs [get_ports -filter {DIRECTION == OUT}]
+foreach port $outputs {
+    if {![get_property HAS_OUTPUT_DELAY $port]} {
+        puts "missing=[get_property NAME $port]"
+    }
+}`,
+            `set outputs [get_ports -filter {DIRECTION == OUT}]
+foreach port $outputs {
+    if {![get_property HAS_OUTPUT_DELAY $port]} {
+        puts "missing=[get_property NAME $port]"
+    }
+}`,
+            "先取全部输出端口，再检查布尔属性 HAS_OUTPUT_DELAY。",
+            "你已经从真实 EDA 对象集合中提取出两条可行动的审计证据。",
+            {
+              outputExact: ["missing=out_valid", "missing=irq"],
+              traceCommands: ["get_ports", "get_property"],
+            },
+          ),
+          challenge(
+            "constraint-project-edit",
+            "edit",
+            "收集而不是散落输出",
+            "把违例名字收集到 missing 列表，输出 missing=out_valid,irq。",
+            `set outputs [get_ports -filter {DIRECTION == OUT}]
+set missing {}
+
+# 收集未约束端口名
+
+puts "missing=[join $missing ,]"`,
+            `set outputs [get_ports -filter {DIRECTION == OUT}]
+set missing {}
+
+foreach port $outputs {
+    if {![get_property HAS_OUTPUT_DELAY $port]} {
+        lappend missing [get_property NAME $port]
+    }
+}
+
+puts "missing=[join $missing ,]"`,
+            "只在属性为假时 lappend NAME；循环结束后统一输出。",
+            "违例已经成为可复用的数据集合，可以继续写报告、JSON 或 CI 注释。",
+            {
+              outputExact: ["missing=out_valid,irq"],
+              traceCommands: ["get_ports", "get_property"],
+            },
+          ),
+          challenge(
+            "constraint-project-capstone",
+            "capstone",
+            "交付 audit_output_delays",
+            "实现审计过程并输出 checked=4 missing=2 ports=out_valid,irq verdict=BLOCK。",
+            `proc audit_output_delays {} {
+    # 返回 CHECKED、MISSING、PORTS 字典
+}
+
+set audit [audit_output_delays]
+set verdict [expr {[dict get $audit MISSING] > 0 ? "BLOCK" : "PASS"}]
+puts "checked=[dict get $audit CHECKED] missing=[dict get $audit MISSING] ports=[join [dict get $audit PORTS] ,] verdict=$verdict"`,
+            `proc audit_output_delays {} {
+    set outputs [get_ports -filter {DIRECTION == OUT}]
+    set missing {}
+    foreach port $outputs {
+        if {![get_property HAS_OUTPUT_DELAY $port]} {
+            lappend missing [get_property NAME $port]
+        }
+    }
+    return [dict create \
+        CHECKED [llength $outputs] \
+        MISSING [llength $missing] \
+        PORTS $missing]
+}
+
+set audit [audit_output_delays]
+set verdict [expr {[dict get $audit MISSING] > 0 ? "BLOCK" : "PASS"}]
+puts "checked=[dict get $audit CHECKED] missing=[dict get $audit MISSING] ports=[join [dict get $audit PORTS] ,] verdict=$verdict"`,
+            "过程内部保存句柄，最终只把稳定的统计和名字返回给调用方。",
+            "项目完成：这是一份可以放进真实约束检查流水线的审计骨架。",
+            {
+              outputExact: [
+                "checked=4 missing=2 ports=out_valid,irq verdict=BLOCK",
+              ],
+              traceCommands: ["get_ports", "get_property"],
+            },
+          ),
+        ],
+        {
+          setting: "bitstream 发布前必须确认每个输出端口都有外部时序约束",
+          input: "设计数据库中的输出端口及 HAS_OUTPUT_DELAY 属性",
+          deliverable: "audit_output_delays 过程与完整违例证据",
+          acceptance: ["检查全部输出", "列出全部漏约束端口", "存在违例即 BLOCK"],
+        },
+      ),
+      projectLesson(
+        "release-gate-project",
+        "40",
+        "applied-projects",
+        "项目 06 · 流程编排",
+        "构建设计发布门禁",
+        "32 min",
+        "串起读入、综合、优化、布局、布线、时序检查和检查点输出，生成最终发布结论。",
+        "每个阶段都有前置状态；门禁只在流程完成且关键指标满足时 PASS。",
+        "这里使用教学模拟命令保持关键状态语义。迁移到真实工具时，再补器件、策略、输出目录和版本检查。",
+        ["synth_design", "route_design", "timing paths", "release gate"],
+        [
+          challenge(
+            "release-gate-observe",
+            "observe",
+            "建立设计库存基线",
+            "查询对象数据库，输出 cells=7 regs=4 clocks=2 paths=3。",
+            `set cells [get_cells -hier *]
+set regs [get_cells -hier -filter {IS_SEQUENTIAL == 1}]
+set clocks [get_clocks *]
+set paths [get_timing_paths]
+puts "cells=[llength $cells] regs=[llength $regs] clocks=[llength $clocks] paths=[llength $paths]"`,
+            `set cells [get_cells -hier *]
+set regs [get_cells -hier -filter {IS_SEQUENTIAL == 1}]
+set clocks [get_clocks *]
+set paths [get_timing_paths]
+puts "cells=[llength $cells] regs=[llength $regs] clocks=[llength $clocks] paths=[llength $paths]"`,
+            "这是流程前后的基线摘要：设计对象、寄存器、时钟和路径数量。",
+            "你已经能生成一行足以发现空设计、时钟丢失等严重问题的库存基线。",
+            {
+              outputExact: ["cells=7 regs=4 clocks=2 paths=3"],
+              traceCommands: [
+                "get_cells",
+                "get_clocks",
+                "get_timing_paths",
+              ],
+            },
+          ),
+          challenge(
+            "release-gate-edit",
+            "edit",
+            "统计并定位失败路径",
+            "输出 failing=2 worst=-0.230，worst 必须来自失败路径中的最小 SLACK。",
+            `set failing [get_timing_paths -slack_lesser_than 0]
+set worst 999.0
+
+# 遍历 failing 更新 worst
+
+puts [format "failing=%d worst=%.3f" [llength $failing] $worst]`,
+            `set failing [get_timing_paths -slack_lesser_than 0]
+set worst 999.0
+
+foreach path $failing {
+    set slack [get_property SLACK $path]
+    if {$slack < $worst} {
+        set worst $slack
+    }
+}
+
+puts [format "failing=%d worst=%.3f" [llength $failing] $worst]`,
+            "对每个 timing path 读取 SLACK，并保存更小的值。",
+            "门禁现在同时掌握失败数量和最坏程度，而不是只看一段报告。",
+            {
+              outputExact: ["failing=2 worst=-0.230"],
+              traceCommands: ["get_timing_paths", "get_property"],
+            },
+          ),
+          challenge(
+            "release-gate-capstone",
+            "capstone",
+            "交付 run_release_gate",
+            "实现完整 non-project 流程，输出 design=soc_top failing=2 worst=-0.230 verdict=BLOCK。",
+            `proc run_release_gate {} {
+    # 读入、综合、优化、布局、布线
+    # 查询失败路径并返回字典
+}
+
+set gate [run_release_gate]
+puts [format "design=%s failing=%d worst=%.3f verdict=%s" \
+    [dict get $gate DESIGN] \
+    [dict get $gate FAILING] \
+    [dict get $gate WORST] \
+    [dict get $gate VERDICT]]`,
+            `proc run_release_gate {} {
+    read_verilog rtl/soc_top.v
+    read_xdc constr/soc_top.xdc
+    synth_design -top soc_top -part xc7a200t
+    opt_design
+    place_design
+    route_design
+
+    set failing [get_timing_paths -slack_lesser_than 0]
+    set worst 0.0
+    foreach path $failing {
+        set slack [get_property SLACK $path]
+        if {$slack < $worst} {
+            set worst $slack
+        }
+    }
+    write_checkpoint build/soc_top_routed.dcp
+    report_timing_summary
+    return [dict create \
+        DESIGN [current_design] \
+        FAILING [llength $failing] \
+        WORST $worst \
+        VERDICT [expr {[llength $failing] == 0 ? "PASS" : "BLOCK"}]]
+}
+
+set gate [run_release_gate]
+puts [format "design=%s failing=%d worst=%.3f verdict=%s" \
+    [dict get $gate DESIGN] \
+    [dict get $gate FAILING] \
+    [dict get $gate WORST] \
+    [dict get $gate VERDICT]]`,
+            "严格按状态顺序调用实现阶段；route 后再查路径、写检查点并返回统一字典。",
+            "项目完成：你交付了一条带证据、带结论、失败时不会继续发布的自动化主流程。",
+            {
+              outputExact: [
+                "design=soc_top failing=2 worst=-0.230 verdict=BLOCK",
+              ],
+              traceCommands: [
+                "read_verilog",
+                "read_xdc",
+                "synth_design",
+                "opt_design",
+                "place_design",
+                "route_design",
+                "get_timing_paths",
+                "write_checkpoint",
+                "report_timing_summary",
+              ],
+            },
+          ),
+        ],
+        {
+          setting: "从 RTL 到 routed checkpoint 的夜间构建必须自动决定能否发布",
+          input: "RTL、XDC、目标 top 与设计数据库中的 timing paths",
+          deliverable: "run_release_gate 主过程、检查点和门禁摘要",
+          acceptance: ["阶段顺序合法", "保留最差时序证据", "失败路径存在即 BLOCK"],
+        },
+      ),
+    ],
+  },
+  {
+    id: "capstones",
+    index: "08",
     title: "把知识变成四个可交付脚本",
     shortTitle: "实战",
     description: "不再给出逐行 TODO。完成约束审计、时序分诊、QoR 摘要和全流程门禁。",
@@ -2372,7 +3525,7 @@ puts "BUILD top=$top version=[version -short]"`,
     lessons: [
       lesson(
         "constraint-audit",
-        "31",
+        "41",
         "capstones",
         "找出漏加输出延迟的端口",
         "Capstone · 约束审计",
@@ -2443,7 +3596,7 @@ puts "missing=[audit_outputs]"`,
       ),
       lesson(
         "timing-triage",
-        "32",
+        "42",
         "capstones",
         "按严重度分诊失败路径",
         "Capstone · Timing triage",
@@ -2531,7 +3684,7 @@ puts "TRIAGE=$status critical=$critical minor=$minor"`,
       ),
       lesson(
         "qor-library",
-        "33",
+        "43",
         "capstones",
         "把 QoR 报告做成小型库",
         "Capstone · 可复用模块",
@@ -2610,7 +3763,7 @@ puts [::qor::to_csv $data]`,
       ),
       lesson(
         "full-flow-gate",
-        "34",
+        "44",
         "capstones",
         "从 RTL 到门禁结论",
         "Final · 完整自动化",
@@ -2750,11 +3903,15 @@ export const commandReference = [
   ["puts ?channel? value", "输出到终端或文件"],
   ["expr {expression}", "执行数值/布尔计算"],
   ["list / lindex / llength", "构造与读取列表"],
+  ["lassign / lmap / lsort", "解构、映射与整理集合"],
   ["foreach item $items {…}", "遍历集合"],
   ["if {condition} {…}", "按规则分支"],
   ["dict get / dict set", "处理结构化键值"],
+  ["regexp / regsub / format", "解析并规范化报告文本"],
+  ["file extension / tail / rootname", "可靠处理跨平台路径"],
   ["proc name {args} {…}", "封装可复用过程"],
   ["catch {script} message", "捕获错误"],
+  ["return -code error -errorcode …", "定义机器可识别的错误契约"],
   ["get_cells ?options? pattern", "查询设计 cell"],
   ["get_property PROP $object", "读取对象属性"],
   ["filter $objects {PROP < 0}", "二次筛选集合"],
