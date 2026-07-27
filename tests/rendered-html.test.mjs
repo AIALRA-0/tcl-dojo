@@ -29,9 +29,14 @@ test("server-renders the Tcl learning workspace", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>TCL\/DOJO — EDA 实战速成<\/title>/i);
+  assert.match(
+    html,
+    /<title>TCL\/DOJO — 从 Tcl 语法到 EDA 自动化<\/title>/i,
+  );
   assert.match(html, /别背语法/);
-  assert.match(html, /变量不是知识点，是旋钮/);
+  assert.match(html, /34 课/);
+  assert.match(html, /98 个交互任务/);
+  assert.match(html, /命令、参数、结果/);
   assert.match(html, /运行并检查/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
@@ -44,7 +49,7 @@ test("removes the disposable starter preview", async () => {
   ]);
 
   assert.match(page, /TclDojo/);
-  assert.match(layout, /TCL\/DOJO — EDA 实战速成/);
+  assert.match(layout, /TCL\/DOJO — 从 Tcl 语法到 EDA 自动化/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
   await assert.rejects(
     access(

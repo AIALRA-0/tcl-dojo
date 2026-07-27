@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored Wacl runtime and its worker bridge are linted upstream.
+    "public/vendor/**",
+    "public/tcl-worker.js",
   ]),
 ]);
 

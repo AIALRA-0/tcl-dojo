@@ -1,11 +1,53 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "TCL/DOJO — EDA 实战速成",
-  description:
-    "一个场景驱动的交互式 Tcl 学习站：写代码、立即运行、通过真实 EDA 风格任务掌握 Tcl。",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const host =
+    requestHeaders.get("x-forwarded-host") ??
+    requestHeaders.get("host") ??
+    "tcl-dojo-eda.aialra0.chatgpt.site";
+  const forwardedProtocol = requestHeaders.get("x-forwarded-proto");
+  const protocol =
+    forwardedProtocol ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = `${protocol}://${host}`;
+  const title = "TCL/DOJO — 从 Tcl 语法到 EDA 自动化";
+  const description =
+    "34 课、98 个交互任务：在浏览器真实 Tcl 8.6 内核中，从求值规则一路练到 EDA 对象查询、Vivado 流程与四个综合项目。";
+  const socialDescription =
+    "别背语法，把流程跑起来。真实 Tcl 8.6 浏览器内核 + Vivado 风格设计数据库。";
+  const image = `${origin}/og.png`;
+
+  return {
+    metadataBase: new URL(origin),
+    title,
+    description,
+    applicationName: "TCL/DOJO",
+    keywords: ["Tcl", "EDA", "Vivado", "FPGA", "自动化", "交互式学习"],
+    openGraph: {
+      title,
+      description: socialDescription,
+      type: "website",
+      locale: "zh_CN",
+      url: origin,
+      images: [
+        {
+          url: image,
+          width: 1732,
+          height: 909,
+          alt: "TCL/DOJO — 从语法到 EDA 自动化",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: socialDescription,
+      images: [image],
+    },
+  };
+}
 
 export default function RootLayout({
   children,
